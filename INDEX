@@ -1,0 +1,10 @@
+calc		learning yacc
+cpick		color picker: take snapshot of screen, then scroll to this window's position for colors
+hcol		display a hex color
+lr		obsolete walk(1)-like
+mev		visualize mouse grabbing
+rfx		mouse accuracy game
+solt		first attempts at plan9 programming
+spd		typing accuracy game (try with /lib/theo!)
+tev		print keyboard/mouse events
+wstat		use syscall(1) instead
