@@ -57,6 +57,7 @@ main(int, char **)
 	fd = open("/dev/kbd", OREAD);
 	if(fd < 0)
 		sysfatal("open: %r");
+	memset(buf, 0, sizeof buf);
 	for(;;){
 		if(buf[0] != 0){
 			n = strlen(buf)+1;
