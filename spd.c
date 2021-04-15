@@ -324,7 +324,6 @@ threadmain(int argc, char *argv[])
 	double d;
 	Rectangle r;
 	Rune k;
-	Mouse m;
 
 	ARGBEGIN{
 	case 'd':
@@ -383,7 +382,7 @@ threadmain(int argc, char *argv[])
 	enum{ATIC, AMOUSE, ARESIZE, AKEY, AEND};
 	Alt a[AEND+1] = {
 		[ATIC] {tc, nil, CHANRCV},
-		[AMOUSE] {mc->c, &m, CHANRCV},
+		[AMOUSE] {mc->c, &mc->Mouse, CHANRCV},
 		[ARESIZE] {mc->resizec, nil, CHANRCV},
 		[AKEY] {kc->c, &k, CHANRCV},
 		[AEND] {nil, nil, CHANEND}
@@ -397,7 +396,7 @@ threadmain(int argc, char *argv[])
 			plaster();
 			break;
 		case AMOUSE:
-			if(m.buttons & 4)
+			if(mc->buttons & 4)
 				menu();
 			break;
 		case ARESIZE:

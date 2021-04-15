@@ -56,7 +56,7 @@ void
 threadmain(int, char **)
 {
 	int fd;
-	Mouse m, om;
+	Mouse om;
 	Rune r;
 
 	if(initdraw(nil, nil, "cpick") < 0)
@@ -75,9 +75,10 @@ threadmain(int, char **)
 		sysfatal("initkeyboard: %r");
 	if((mc = initmouse(nil, _screen->display->image)) == nil)
 		sysfatal("initmouse: %r");
+	om.xy = ZP;
 	Alt a[] = {
 		{mc->resizec, nil, CHANRCV},
-		{mc->c, &m, CHANRCV},
+		{mc->c, &mc->Mouse, CHANRCV},
 		{kc->c, &r, CHANRCV},
 		{nil, nil, CHANEND}
 	};
@@ -86,16 +87,19 @@ threadmain(int, char **)
 		case 0:
 			if(getwindow(display, Refnone) < 0)
 				sysfatal("getwindow: %r");
+			om = mc->Mouse;
 			redraw();
 			break;
 		case 1:
-			if((m.buttons & 4) == 4){
-				pan.x += m.xy.x - om.xy.x;
-				pan.y += m.xy.y - om.xy.y;
+			if(eqpt(om.xy, ZP))
+				om = mc->Mouse;
+			if((mc->buttons & 4) == 4){
+				pan.x += mc->xy.x - om.xy.x;
+				pan.y += mc->xy.y - om.xy.y;
 				redraw();
 			}else
-				putcol(m.xy);
-			om = m;
+				putcol(mc->xy);
+			om = mc->Mouse;
 			break;
 		case 2:
 			switch(r){
