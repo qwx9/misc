@@ -6,8 +6,15 @@ fn ls_body{
 	d=`{basename -d $1}
 	if(~ $#d 0)
 		d='/'
-	echo $d | sed 's,.*//,,g; s,/$,,; s,/, / ,g; s,.*,<h1 class="dir-list-head">&</h1> <ul class="dir-list">,'
-	echo '<a href="../">..</a><br><table border="0"><tr><th>size<th>last modified<th>name</tr>'
-	ls -Fl $sitedir$d | sed $dirclean'/_werc/d;s/^[^ ]+ [^ ]+ [^ ]+ [^ ]+ [^ ]+ +//;s/^([^ ]+) (.*) [^ ]+\/([^''\/\* ]+\/?)''?(\*?)$/<tr><td>\1<td>\2<td><a href="\3">\3\4<\/a><\/tr>/'
+	if(test -f $sitedir$d/index.md){
+		$formatter $sitedir$d/index.md
+		echo '<ul class="dir-list">'
+	}
+	if not{
+		echo $d | sed 's,.*//,,g; s,/$,,; s,/, / ,g; s,.*,<h1 class="dir-list-head">&</h1> <ul class="dir-list">,'
+		echo '<a href="../">..</a><br>'
+	}
+	echo '<table border="0"><tr><th>size<th>last modified<th>name</tr>'
+	ls -Fl $sitedir$d | sed $dirclean'/_werc/d;/index/d;s/^[^ ]+ [^ ]+ [^ ]+ [^ ]+ [^ ]+ +//;s/^([^ ]+) (.*) [^ ]+\/([^''\/\* ]+\/?)''?(\*?)$/<tr><td>\1<td>\2<td><a href="\3">\3\4<\/a><\/tr>/'
 	echo '</table></ul>'
 }
