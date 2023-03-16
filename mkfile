@@ -9,6 +9,8 @@ TARG=\
 	spd\
 	tev\
 	wstat\
+	mid2s\
+	midump\
 
 HFILES=
 YFLAGS=-D
