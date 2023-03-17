@@ -4,8 +4,8 @@
 
 enum{
 	Rate = 44100,
-	Nchan = 16,//6,
-	Percch = 9,//5,
+	Nchan = 16,
+	Percch = 9,
 };
 
 typedef struct Trk Trk;
@@ -18,10 +18,11 @@ struct Trk{
 	double t;
 	int ev;
 	int ended;
-	int chan[16];
+	int chan[Nchan];
 };
 Trk *tr;
-int chan[16];
+int chan[Nchan];
+int maxchan = Nchan;
 
 int trace;
 int mfmt, ntrk, div = 1, tempo;
@@ -175,7 +176,7 @@ mapinst(Trk *x, int c, int e)
 	else if(chan[c] >= 0)
 		return e;
 	else{
-		for(i=0; i<Nchan; i++){
+		for(i=0; i<maxchan; i++){
 			if(i == Percch)
 				continue;
 			if(chan[i] < 0)
@@ -185,12 +186,12 @@ mapinst(Trk *x, int c, int e)
 		 * or hope the last channel isn't one of the main ones,
 		 * which is usually the case; but we no longer have our
 		 * settings */
-		if(i == Nchan)
-			i = Nchan-2;
+		if(i == maxchan)
+			i = maxchan-1;
 	}
 	x->chan[c] = i;
 	chan[i] = Nchan * (x - tr) + c;
-	return e & ~(16-1) | i;
+	return e & ~(Nchan-1) | i;
 }
 
 int
@@ -199,14 +200,12 @@ ev(Trk *x, vlong)
 	int e, n, m;
 
 	x->q = x->p - 1;
-	//*x->q = 0;
 	dprint(" [%zd] ", x - tr);
 	e = get8(x);
 	if((e & 0x80) == 0){
 		x->p--;
 		e = x->ev;
 		x->q--;
-		//x->q[0] = 0;
 		x->q[1] = e;
 		if((e & 0x80) == 0)
 			sysfatal("invalid event");
@@ -291,7 +290,7 @@ readmid(char *file)
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-D] [mid]\n", argv0);
+	fprint(2, "usage: %s [-D] [-c nchan] [mid]\n", argv0);
 	exits("usage");
 }
 
@@ -304,6 +303,11 @@ main(int argc, char **argv)
 	debug = 0;
 	ARGBEGIN{
 	case 'D': debug = 1; break;
+	case 'c':
+		maxchan = strtol(EARGF(usage()), nil, 10);
+		if(maxchan < 1 || maxchan > Nchan)
+			usage();
+		break;
 	default: usage();
 	}ARGEND
 	readmid(*argv);
@@ -320,7 +324,7 @@ main(int argc, char **argv)
 			while(x->Δ <= 0){
 				if(x->ended = ev(x, 0)){
 					int c = x - tr;
-					for(int i=0; i<Nchan; i++){
+					for(int i=0; i<maxchan; i++){
 						if(chan[i] == c + i)
 							chan[i] = -1;
 					}
