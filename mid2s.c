@@ -4,8 +4,9 @@
 
 enum{
 	Rate = 44100,
-	Nchan = 16,//6,
-	Percch = 9,//5,
+	Nchan = 16,
+	Maxch = 16,	// FIXME: could have more
+	Percch = 9,
 };
 
 typedef struct Trk Trk;
@@ -18,10 +19,10 @@ struct Trk{
 	double t;
 	int ev;
 	int ended;
-	int chan[16];
 };
 Trk *tr;
-int chan[16];
+int m2ich[Maxch], i2mch[Maxch], age[Maxch];
+int nch = Nchan, percch = Percch;
 
 int trace;
 int mfmt, ntrk, div = 1, tempo;
@@ -147,50 +148,66 @@ getvar(Trk *x)
 	return v;
 }
 
+// FIXME: common midi.c shit (midilib.c? midifile?)
 void
 samp(double n)
 {
-	double Δ;
-	long t;
-	static double ε;
+	double Δt;
+	long s;
+	static double t0, t1;
 
-	/* FIXME: using nsec() might help with desyncs? ie. account for drift? */
-	Δ = n * 1000 * tempo / div + ε;
-	t = floor(Δ / 1000000);
-	ε = Δ - t * 1000000;
-	sleep(t);
+	if(t0 == 0.0)
+		t0 = nsec();
+	t1 = t0 + n * 1000 * tempo / div;
+	t0 = t1;
+	Δt = t1 - nsec();
+	s = floor(Δt / 1000000);
+	if(s > 0)
+		sleep(s);
 }
 
 int
-mapinst(Trk *x, int c, int e)
+mapinst(Trk *, int c, int e)
 {
-	int i;
+	int i, m, a;
 
-	if(e >> 4 == 0xf)
-		return e;
-	if(e >> 4 != 0x9 || x->chan[c] >= 0)
-		return e;
+	i = m2ich[c];
 	if(c == 9)
-		i = Percch;
-	else if(chan[c] >= 0)
+		i = percch;
+	else if(e >> 4 != 0x9){
+		if(e >> 4 == 0x8 && i >= 0){
+			i2mch[i] = -1;
+			m2ich[c] = -1;
+		}
 		return e;
-	else{
-		for(i=0; i<Nchan; i++){
-			if(i == Percch)
+	}else if(i < 0){
+		for(i=0; i<nch; i++){
+			if(i == percch)
 				continue;
-			if(chan[i] < 0)
+			if(i2mch[i] < 0)
 				break;
 		}
-		/* hope for the best; either ignore it,
-		 * or hope the last channel isn't one of the main ones,
-		 * which is usually the case; but we no longer have our
-		 * settings */
-		if(i == Nchan)
-			i = Nchan-2;
+		if(i == nch){
+			for(m=i=a=0; i<nch; i++){
+				if(i == percch)
+					continue;
+				if(age[i] > age[m]){
+					m = i;
+					a = age[i];
+				}
+			}
+			if(a < 100){
+				fprint(2, "could not remap %d\n", c);
+				return e;
+			}
+			i = m;
+			fprint(2, "remapped %d → %d\n", c, i);
+		}
 	}
-	x->chan[c] = i;
-	chan[i] = Nchan * (x - tr) + c;
-	return e & ~(16-1) | i;
+	age[i] = 0;
+	m2ich[c] = i;
+	i2mch[i] = c;
+	return e & ~(Nchan-1) | i;
 }
 
 int
@@ -199,14 +216,12 @@ ev(Trk *x, vlong)
 	int e, n, m;
 
 	x->q = x->p - 1;
-	//*x->q = 0;
 	dprint(" [%zd] ", x - tr);
 	e = get8(x);
 	if((e & 0x80) == 0){
 		x->p--;
 		e = x->ev;
 		x->q--;
-		//x->q[0] = 0;
 		x->q[1] = e;
 		if((e & 0x80) == 0)
 			sysfatal("invalid event");
@@ -217,6 +232,10 @@ ev(Trk *x, vlong)
 	e = mapinst(x, e & 15, e);
 
 	n = get8(x);
+	if((e & 15) == percch){
+		if(n < 36)
+			n += 36 - n;
+	}
 	switch(e >> 4){
 	case 0x8: get8(x); break;
 	case 0x9: get8(x); break;
@@ -278,7 +297,6 @@ readmid(char *file)
 		x->p = s;
 		x->q = x->p;
 		x->e = s + n;
-		memset(x->chan, 0x80, sizeof x->chan);
 		x->Δ = getvar(x);	/* prearm */
 		if(x->Δ < z)
 			z = x->Δ;
@@ -291,25 +309,38 @@ readmid(char *file)
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-D] [mid]\n", argv0);
+	fprint(2, "usage: %s [-D] [-c nch] [-p percch] [mid]\n", argv0);
 	exits("usage");
 }
 
 void
 main(int argc, char **argv)
 {
-	int end, debug;
+	int i, c, end, debug;
 	Trk *x;
 
 	debug = 0;
 	ARGBEGIN{
 	case 'D': debug = 1; break;
+	case 'c':
+		nch = atoi(EARGF(usage()));
+		break;
+	case 'p':
+		percch = atoi(EARGF(usage()));
+		break;
 	default: usage();
 	}ARGEND
+	if(nch <= 0 || nch > Maxch)
+		usage();
+	if(percch <= 0 || percch > nch)
+		usage();
 	readmid(*argv);
-	memset(chan, 0x80, sizeof chan);
 	tempo = 500000;
 	trace = debug;
+	for(i=0; i<nelem(m2ich); i++){
+		m2ich[i] = i2mch[i] = -1;
+		age[i] = -1UL;
+	}
 	for(;;){
 		end = 1;
 		for(x=tr; x<tr+ntrk; x++){
@@ -319,10 +350,11 @@ main(int argc, char **argv)
 			x->Δ--;
 			while(x->Δ <= 0){
 				if(x->ended = ev(x, 0)){
-					int c = x - tr;
-					for(int i=0; i<Nchan; i++){
-						if(chan[i] == c + i)
-							chan[i] = -1;
+					c = x - tr;
+					i = m2ich[c];
+					if(i >= 0){
+						i2mch[i] = -1;
+						m2ich[c] = -1;
 					}
 					break;
 				}
@@ -334,6 +366,16 @@ main(int argc, char **argv)
 			break;
 		}
 		samp(1);
+		for(i=0; i<nch; i++){
+			if(i2mch[i] < 0)
+				continue;
+			age[i]++;
+			if(age[i] > 10000){
+				fprint(2, "reset %d\n", i2mch[i]);
+				m2ich[i2mch[i]] = -1;
+				i2mch[i] = -1;
+			}
+		}
 	}
 	exits(nil);
 }
