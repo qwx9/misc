@@ -15,6 +15,6 @@ fn ls_body{
 		echo '<a href="../">..</a><br>'
 	}
 	echo '<table border="0"><tr><th>size<th>last modified<th>name</tr>'
-	ls -Fl $sitedir$d | sed $dirclean'/_werc/d;/index/d;s/^[^ ]+ [^ ]+ [^ ]+ [^ ]+ [^ ]+ +//;s/^([^ ]+) (.*) [^ ]+\/([^''\/\* ]+\/?)''?(\*?)$/<tr><td>\1<td>\2<td><a href="\3">\3\4<\/a><\/tr>/'
+	ls -Fl $sitedir$d | sed $dirclean'/_werc/d;/[\/ 	]_/d;/index/d;s/^[^ ]+ [^ ]+ [^ ]+ [^ ]+ [^ ]+ +//;s/^([^ ]+) (.*) [^ ]+\/([^''\/\* ]+\/?)''?(\*?)$/<tr><td>\1<td>\2<td><a href="\3">\3\4<\/a><\/tr>/'
 	echo '</table></ul>'
 }
