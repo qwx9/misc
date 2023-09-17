@@ -8,6 +8,7 @@ TARG=\
 	rfx\
 	spd\
 	tev\
+	volctl\
 	wstat\
 
 HFILES=
