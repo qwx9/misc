@@ -8,6 +8,7 @@ TARG=\
 	rfx\
 	spd\
 	tev\
+	vol\
 	wstat\
 
 HFILES=
